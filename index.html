@@ -211,7 +211,7 @@
     </div>
 
     <script>
-        // 🟢 Markdown Parser Settings (Prevents broken text hiding)
+        // 🟢 Markdown Parser Settings
         marked.setOptions({ 
             breaks: true, 
             gfm: true,
@@ -515,7 +515,7 @@
                             model: model,
                             messages: apiMessages,
                             temperature: 0.7,
-                            max_tokens: 4096, // 🟢 INCREASED TO 4096 FOR LONGER REPLIES
+                            max_tokens: 32768, // 🟢 INCREASED TO 32K (The documented maximum output limit for Nemotron 3 Super)
                             stream: false
                         })
                     });
