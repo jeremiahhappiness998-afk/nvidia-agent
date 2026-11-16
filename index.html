@@ -211,7 +211,13 @@
     </div>
 
     <script>
-        marked.setOptions({ breaks: true, gfm: true });
+        // 🟢 Markdown Parser Settings (Prevents broken text hiding)
+        marked.setOptions({ 
+            breaks: true, 
+            gfm: true,
+            sanitize: false,
+            smartypants: true
+        });
 
         (function() {
             // --- State ---
@@ -407,8 +413,7 @@
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 
                 if (!SpeechRecognition) {
-                    micBtn.style.display = 'none'; // Hide if browser doesn't support it
-                    console.warn("Speech Recognition not supported in this browser.");
+                    micBtn.style.display = 'none'; 
                     return;
                 }
 
@@ -441,7 +446,6 @@
                 };
 
                 recognition.onerror = (event) => {
-                    console.error('Speech recognition error:', event.error);
                     micBtn.classList.remove('recording');
                     isRecording = false;
                 };
@@ -497,7 +501,7 @@
                     }));
 
                     const apiMessages = [
-                        { role: 'system', content: persona }, // 🟢 Injecting the Persona here
+                        { role: 'system', content: persona },
                         ...sanitizedHistory
                     ];
 
@@ -511,7 +515,7 @@
                             model: model,
                             messages: apiMessages,
                             temperature: 0.7,
-                            max_tokens: 1024,
+                            max_tokens: 4096, // 🟢 INCREASED TO 4096 FOR LONGER REPLIES
                             stream: false
                         })
                     });
