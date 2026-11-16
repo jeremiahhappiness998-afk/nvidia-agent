@@ -126,10 +126,10 @@
             <input type="password" id="apiKeyInput" placeholder="nvapi-...">
             <label for="modelSelect">Model</label>
             <select id="modelSelect">
-                <option value="meta/llama-3.3-70b-instruct">Llama 3.3 70B (Recommended)</option>
-                <option value="nvidia/llama-3.1-nemotron-70b-instruct">Nemotron 70B</option>
-                <option value="deepseek-ai/deepseek-v3.2">DeepSeek V3.2</option>
-                <option value="mistralai/mistral-large-2-instruct">Mistral Large 2</option>
+                <option value="nvidia/nemotron-3-ultra-550b-a55b">Nemotron Ultra</option>
+                <option value="meta/llama-3.1-405b-instruct">Llama 3.1 405B</option>
+                <option value="meta/llama-3.1-70b-instruct">Llama 3.1 70B</option>
+                <option value="mistralai/mixtral-8x7b-instruct-v0.1">Mixtral 8x7B</option>
             </select>
             <div class="btn-row">
                 <button class="btn-close" id="closeSettings">Cancel</button>
@@ -143,7 +143,7 @@
         (function() {
             // --- State ---
             let apiKey = localStorage.getItem('nvidia_api_key') || '';
-            let model = localStorage.getItem('nvidia_model') || 'meta/llama-3.3-70b-instruct';
+            let model = localStorage.getItem('nvidia_model') || 'nvidia/nemotron-3-ultra-550b-a55b';
             let messages = []; // Conversation history
             let isLoading = false;
 
@@ -160,14 +160,12 @@
 
             // --- Initialization ---
             function init() {
-                // Load saved key into input field (masked)
                 if (apiKey) {
                     apiKeyInput.value = apiKey;
                     modelSelect.value = model;
                     sendBtn.disabled = false;
                     addSystemMessage('🔑 API key loaded. You can start chatting.');
                 }
-                // Auto-resize textarea
                 userInput.addEventListener('input', () => {
                     userInput.style.height = 'auto';
                     userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
@@ -208,7 +206,6 @@
                 div.textContent = content;
                 chatContainer.appendChild(div);
                 chatContainer.scrollTop = chatContainer.scrollHeight;
-                // Store in history
                 messages.push({ role, content });
                 return div;
             }
@@ -251,16 +248,15 @@
                 isLoading = true;
                 sendBtn.disabled = true;
 
-                // Show typing indicator
                 showTyping();
 
                 try {
-                    // Build conversation for API (OpenAI-compatible format)
                     const apiMessages = [
                         { role: 'system', content: 'You are a helpful, concise AI assistant running on a mobile device. Answer clearly and directly.' },
                         ...messages
                     ];
 
+                    // 🟢 USING YOUR CLOUDFLARE WORKER PROXY URL HERE 🟢
                     const response = await fetch('https://nvidia-proxy.jeremiahhappiness998.workers.dev', {
                         method: 'POST',
                         headers: {
@@ -277,8 +273,11 @@
                     });
 
                     if (!response.ok) {
+                        if (response.status === 410) {
+                            throw new Error('410 Model Deprecated: NVIDIA has retired this specific model. Go to Settings and choose a different one.');
+                        }
                         const errorData = await response.json().catch(() => ({}));
-                        throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+                        throw new Error(errorData.error?.message || errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
                     }
 
                     const data = await response.json();
