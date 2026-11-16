@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#000000">
     <title>NVIDIA Mobile Agent</title>
-    
-    <!-- Load Markdown Parser -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    
     <style>
         :root {
             --bg: #0a0a0a; --surface: #1a1a1a; --surface-hover: #2a2a2a;
@@ -24,14 +21,17 @@
         /* Header */
         .header {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 10px 12px; background: var(--surface); border-bottom: 1px solid var(--border);
         }
-        .header h1 { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .header h1 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
         .header h1 span { color: var(--accent); }
-        .header button {
+        .header-actions { display: flex; gap: 6px; }
+        .icon-btn {
             background: none; border: 1px solid var(--border); color: var(--text);
-            padding: 6px 12px; border-radius: 20px; font-size: 13px; cursor: pointer;
+            padding: 6px 10px; border-radius: 20px; font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
         }
+        .icon-btn:active { background: var(--surface-hover); }
         /* Chat Area */
         .chat-container {
             flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;
@@ -43,34 +43,25 @@
         }
         .message.user {
             align-self: flex-end; background: var(--user-bubble); border-bottom-right-radius: 4px;
-            white-space: pre-wrap; /* Preserves user line breaks */
+            white-space: pre-wrap;
         }
         .message.agent {
             align-self: flex-start; background: var(--agent-bubble); border: 1px solid var(--border);
             border-bottom-left-radius: 4px;
         }
+        /* Markdown Formatting */
+        .message.agent p { margin-bottom: 8px; }
+        .message.agent p:last-child { margin-bottom: 0; }
+        .message.agent strong { font-weight: 700; color: #fff; }
+        .message.agent ul, .message.agent ol { margin-left: 20px; margin-bottom: 8px; }
+        .message.agent li { margin-bottom: 4px; }
+        .message.agent code { background: #333; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 14px; }
+        .message.agent pre { background: #111; padding: 12px; border-radius: 8px; overflow-x: auto; margin-bottom: 8px; border: 1px solid var(--border); }
+        .message.agent pre code { background: transparent; padding: 0; }
         .message.system {
             align-self: center; background: transparent; color: var(--text-secondary);
             font-size: 12px; text-align: center; max-width: 100%;
-            white-space: pre-wrap;
         }
-
-        /* Markdown Formatting Styles inside AI messages */
-        .message.agent p { margin-bottom: 8px; }
-        .message.agent p:last-child { margin-bottom: 0; }
-        .message.agent strong { font-weight: bold; color: #fff; }
-        .message.agent ul, .message.agent ol { margin-left: 20px; margin-bottom: 8px; }
-        .message.agent li { margin-bottom: 4px; }
-        .message.agent code {
-            background: #2a2a2a; padding: 2px 4px; border-radius: 4px;
-            font-family: monospace; font-size: 13px; color: #f0a050;
-        }
-        .message.agent pre {
-            background: #111; padding: 10px; border-radius: 8px; overflow-x: auto;
-            margin-bottom: 8px; border: 1px solid var(--border);
-        }
-        .message.agent pre code { background: transparent; padding: 0; color: #e0e0e0; }
-        
         /* Input Area */
         .input-area {
             display: flex; gap: 8px; padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom));
@@ -88,30 +79,47 @@
             display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
         .input-area button:disabled { opacity: 0.5; }
-        /* Settings Panel */
-        .settings-panel {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7);
+        /* Modals (Settings & History) */
+        .modal-panel {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8);
             backdrop-filter: blur(5px); z-index: 100; display: none;
             align-items: center; justify-content: center; padding: 20px;
         }
-        .settings-panel.open { display: flex; }
-        .settings-content {
-            background: var(--surface); padding: 24px; border-radius: 16px; width: 100%;
-            max-width: 400px; border: 1px solid var(--border);
+        .modal-panel.open { display: flex; }
+        .modal-content {
+            background: var(--surface); padding: 20px; border-radius: 16px; width: 100%;
+            max-width: 400px; border: 1px solid var(--border); max-height: 80vh;
+            display: flex; flex-direction: column;
         }
-        .settings-content h2 { margin-bottom: 16px; font-size: 18px; }
-        .settings-content label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary); }
-        .settings-content input, .settings-content select {
+        .modal-content h2 { margin-bottom: 16px; font-size: 18px; }
+        .modal-content label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary); }
+        .modal-content input, .modal-content select {
             width: 100%; padding: 10px; margin-bottom: 16px; background: var(--bg);
             border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-size: 15px;
         }
-        .settings-content .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
-        .settings-content .btn-row button {
-            padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer;
-        }
+        .btn-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+        .btn-row button { padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; }
         .btn-save { background: var(--accent); color: #000; font-weight: 600; }
         .btn-close { background: var(--surface-hover); color: var(--text); }
         .disclaimer { font-size: 11px; color: var(--text-secondary); margin-top: 8px; line-height: 1.4; }
+        
+        /* History List */
+        .history-list {
+            flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;
+        }
+        .history-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--bg); padding: 12px; border-radius: 8px;
+            border: 1px solid var(--border); cursor: pointer;
+        }
+        .history-item:active { background: var(--surface-hover); }
+        .history-title {
+            font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
+        }
+        .delete-btn {
+            background: transparent; border: none; color: #ff4444; font-size: 16px; cursor: pointer;
+            padding: 4px 8px; margin-left: 8px;
+        }
         /* Typing Indicator */
         .typing { display: flex; gap: 4px; padding: 12px 16px; align-self: flex-start; }
         .typing span {
@@ -126,14 +134,16 @@
 <body>
     <!-- Header -->
     <div class="header">
+        <button id="newChatBtn" class="icon-btn" title="New Chat">➕</button>
         <h1>⚡ NVIDIA <span>Agent</span></h1>
-        <button id="settingsBtn">⚙️ Settings</button>
+        <div class="header-actions">
+            <button id="historyBtn" class="icon-btn" title="History">🕒</button>
+            <button id="settingsBtn" class="icon-btn" title="Settings">⚙️</button>
+        </div>
     </div>
 
     <!-- Chat Container -->
-    <div class="chat-container" id="chatContainer">
-        <div class="message system">Connect your NVIDIA API key in Settings to begin.</div>
-    </div>
+    <div class="chat-container" id="chatContainer"></div>
 
     <!-- Input Area -->
     <div class="input-area">
@@ -142,8 +152,8 @@
     </div>
 
     <!-- Settings Panel -->
-    <div class="settings-panel" id="settingsPanel">
-        <div class="settings-content">
+    <div class="modal-panel" id="settingsPanel">
+        <div class="modal-content">
             <h2>⚙️ Configuration</h2>
             <label for="apiKeyInput">NVIDIA API Key</label>
             <input type="password" id="apiKeyInput" placeholder="nvapi-...">
@@ -163,16 +173,38 @@
         </div>
     </div>
 
+    <!-- History Panel -->
+    <div class="modal-panel" id="historyPanel">
+        <div class="modal-content">
+            <h2>🕒 Chat History</h2>
+            <div class="history-list" id="historyList">
+                <!-- History items injected by JS -->
+            </div>
+            <div class="btn-row">
+                <button class="btn-close" id="closeHistory">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        marked.setOptions({ breaks: true, gfm: true });
+
         (function() {
+            // --- State ---
             let apiKey = localStorage.getItem('nvidia_api_key') || '';
             let model = localStorage.getItem('nvidia_model') || 'nvidia/nemotron-3-super-120b-a12b';
-            let messages = [];
             let isLoading = false;
+            
+            // Chat History State
+            let allChats = JSON.parse(localStorage.getItem('nvidia_chats')) || [];
+            let currentChatId = localStorage.getItem('nvidia_current_chat_id');
+            let messages = [];
 
+            // --- DOM Elements ---
             const chatContainer = document.getElementById('chatContainer');
             const userInput = document.getElementById('userInput');
             const sendBtn = document.getElementById('sendBtn');
+            
             const settingsBtn = document.getElementById('settingsBtn');
             const settingsPanel = document.getElementById('settingsPanel');
             const closeSettings = document.getElementById('closeSettings');
@@ -180,65 +212,164 @@
             const apiKeyInput = document.getElementById('apiKeyInput');
             const modelSelect = document.getElementById('modelSelect');
 
+            const newChatBtn = document.getElementById('newChatBtn');
+            const historyBtn = document.getElementById('historyBtn');
+            const historyPanel = document.getElementById('historyPanel');
+            const closeHistory = document.getElementById('closeHistory');
+            const historyList = document.getElementById('historyList');
+
+            // --- Initialization ---
             function init() {
                 if (apiKey) {
                     apiKeyInput.value = apiKey;
                     modelSelect.value = model;
                     sendBtn.disabled = false;
-                    addSystemMessage('🔑 API key loaded. You can start chatting.');
                 }
+
+                // Load or Start Chat
+                if (currentChatId) {
+                    const savedChat = allChats.find(c => c.id === currentChatId);
+                    if (savedChat) {
+                        messages = savedChat.messages;
+                        renderAllMessages();
+                    } else {
+                        startNewChat(false);
+                    }
+                } else {
+                    startNewChat(false);
+                }
+
                 userInput.addEventListener('input', () => {
                     userInput.style.height = 'auto';
                     userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
                 });
             }
 
-            settingsBtn.addEventListener('click', () => {
-                apiKeyInput.value = apiKey;
-                modelSelect.value = model;
-                settingsPanel.classList.add('open');
-            });
+            // --- Chat History Logic ---
+            function saveCurrentChat() {
+                if (messages.length === 0) return;
+                
+                const chatIndex = allChats.findIndex(c => c.id === currentChatId);
+                
+                // Create title from first user message
+                const firstUserMsg = messages.find(m => m.role === 'user');
+                const title = firstUserMsg ? firstUserMsg.content.substring(0, 30) + (firstUserMsg.content.length > 30 ? '...' : '') : 'New Chat';
 
-            closeSettings.addEventListener('click', () => {
-                settingsPanel.classList.remove('open');
-            });
+                const chatData = {
+                    id: currentChatId,
+                    title: title,
+                    timestamp: Date.now(),
+                    messages: messages
+                };
 
-            saveSettings.addEventListener('click', () => {
-                const newKey = apiKeyInput.value.trim();
-                const newModel = modelSelect.value;
-                if (!newKey) {
-                    alert('Please enter an API key.');
+                if (chatIndex > -1) {
+                    allChats[chatIndex] = chatData; // Update existing
+                } else {
+                    allChats.unshift(chatData); // Add new to top
+                }
+
+                localStorage.setItem('nvidia_chats', JSON.stringify(allChats));
+                localStorage.setItem('nvidia_current_chat_id', currentChatId);
+            }
+
+            function startNewChat(saveCurrent = true) {
+                if (saveCurrent) saveCurrentChat();
+                
+                currentChatId = 'chat_' + Date.now();
+                localStorage.setItem('nvidia_current_chat_id', currentChatId);
+                messages = [];
+                chatContainer.innerHTML = '';
+                
+                if (!apiKey) {
+                    addSystemMessage('Connect your NVIDIA API key in Settings to begin.');
+                } else {
+                    addSystemMessage('New chat started. Ask me anything!');
+                }
+                renderHistoryList();
+            }
+
+            function loadChat(id) {
+                saveCurrentChat();
+                
+                const chat = allChats.find(c => c.id === id);
+                if (!chat) return;
+
+                currentChatId = id;
+                localStorage.setItem('nvidia_current_chat_id', currentChatId);
+                messages = chat.messages;
+                renderAllMessages();
+                historyPanel.classList.remove('open');
+            }
+
+            function deleteChat(id, event) {
+                event.stopPropagation(); // Prevent clicking the item
+                if (!confirm('Delete this chat?')) return;
+
+                allChats = allChats.filter(c => c.id !== id);
+                localStorage.setItem('nvidia_chats', JSON.stringify(allChats));
+
+                if (currentChatId === id) {
+                    startNewChat(false);
+                } else {
+                    renderHistoryList();
+                }
+            }
+
+            function renderAllMessages() {
+                chatContainer.innerHTML = '';
+                messages.forEach(msg => {
+                    renderMessageBubble(msg.role, msg.content);
+                });
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            function renderHistoryList() {
+                historyList.innerHTML = '';
+                
+                if (allChats.length === 0) {
+                    historyList.innerHTML = '<div style="color:#888; text-align:center; padding: 20px;">No past chats yet.</div>';
                     return;
                 }
-                apiKey = newKey;
-                model = newModel;
-                localStorage.setItem('nvidia_api_key', apiKey);
-                localStorage.setItem('nvidia_model', model);
-                settingsPanel.classList.remove('open');
-                sendBtn.disabled = false;
-                addSystemMessage('✅ Settings saved. You can now chat.');
-            });
 
-            function addMessage(role, content) {
+                allChats.forEach(chat => {
+                    const div = document.createElement('div');
+                    div.className = 'history-item';
+                    div.onclick = () => loadChat(chat.id);
+
+                    const title = document.createElement('div');
+                    title.className = 'history-title';
+                    title.textContent = chat.title;
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'delete-btn';
+                    delBtn.innerHTML = '🗑️';
+                    delBtn.onclick = (e) => deleteChat(chat.id, e);
+
+                    div.appendChild(title);
+                    div.appendChild(delBtn);
+                    historyList.appendChild(div);
+                });
+            }
+
+            // --- UI & Rendering ---
+            function renderMessageBubble(role, content) {
                 const div = document.createElement('div');
                 div.className = `message ${role}`;
                 
-                // 🟢 MARKDOWN FORMATTING FIX: Parse markdown for the AI, keep user text raw.
                 if (role === 'agent') {
-                    // Using marked.js to convert markdown to HTML
-                    if (typeof marked !== 'undefined') {
-                        div.innerHTML = marked.parse(content);
-                    } else {
-                        div.textContent = content; // Fallback if CDN fails
-                    }
+                    div.innerHTML = marked.parse(content);
                 } else {
                     div.textContent = content;
                 }
-
+                
                 chatContainer.appendChild(div);
                 chatContainer.scrollTop = chatContainer.scrollHeight;
-                messages.push({ role, content }); // Save raw text to history
-                return div;
+            }
+
+            function addMessage(role, content) {
+                renderMessageBubble(role, content);
+                messages.push({ role, content });
+                saveCurrentChat(); // Auto-save on every message
             }
 
             function addSystemMessage(text) {
@@ -263,6 +394,7 @@
                 if (el) el.remove();
             }
 
+            // --- API & Sending ---
             function explainError(status, rawBody) {
                 let detail = '';
                 try {
@@ -275,24 +407,13 @@
                 const base = `NVIDIA API Error (${status})`;
 
                 switch (status) {
-                    case 400:
-                        return `${base}: The request format was rejected. Try switching to "Nemotron 3 Super 120B" in Settings. Details: ${detail}`;
-                    case 401:
-                        return `${base}: Your API key is invalid or expired.`;
-                    case 403:
-                        return `${base}: Access forbidden. Try a different model in Settings.`;
-                    case 404:
-                        return `${base}: The model "${model}" was retired. Pick a new one in Settings.`;
-                    case 410:
-                        return `${base}: This model was permanently removed. Switch models in Settings.`;
-                    case 429:
-                        return `${base}: Rate limit reached. Wait a minute, then try again.`;
-                    case 500:
-                    case 502:
-                    case 503:
-                        return `${base}: NVIDIA's servers are temporarily busy. Try again.`;
-                    default:
-                        return `${base}: ${detail || 'Unknown error.'}`;
+                    case 400: return `${base}: The request was rejected by the model. Try switching models in Settings. Details: ${detail}`;
+                    case 401: return `${base}: Your API key is invalid or expired.`;
+                    case 403: return `${base}: Access forbidden. Your key may not have permission to use this model.`;
+                    case 404: return `${base}: This model was retired by NVIDIA. Pick a new one in Settings.`;
+                    case 410: return `${base}: This model has been permanently removed. Switch to a newer model.`;
+                    case 429: return `${base}: You are sending requests too quickly. Wait a minute and try again.`;
+                    default: return `${base}: ${detail || 'Unknown error.'}`;
                 }
             }
 
@@ -314,14 +435,13 @@
                 showTyping();
 
                 try {
-                    // Sanitize history to prevent role errors (agent -> assistant)
                     const sanitizedHistory = messages.map(msg => ({
                         role: msg.role === 'agent' ? 'assistant' : msg.role,
                         content: typeof msg.content === 'string' ? msg.content : ''
                     }));
 
                     const apiMessages = [
-                        { role: 'system', content: 'You are a helpful, concise AI assistant. Use Markdown for formatting (like bolding, lists, and code blocks) when helpful.' },
+                        { role: 'system', content: 'You are a helpful, concise AI assistant running on a mobile device. Answer clearly and directly.' },
                         ...sanitizedHistory
                     ];
 
@@ -348,7 +468,7 @@
                     const data = await response.json();
                     const reply = data.choices?.[0]?.message?.content;
 
-                    if (!reply) throw new Error('No response content received.');
+                    if (!reply) throw new Error('No response content received from the model.');
 
                     hideTyping();
                     addMessage('agent', reply);
@@ -363,6 +483,37 @@
                 }
             }
 
+            // --- Event Listeners ---
+            settingsBtn.addEventListener('click', () => {
+                apiKeyInput.value = apiKey;
+                modelSelect.value = model;
+                settingsPanel.classList.add('open');
+            });
+
+            closeSettings.addEventListener('click', () => settingsPanel.classList.remove('open'));
+
+            saveSettings.addEventListener('click', () => {
+                const newKey = apiKeyInput.value.trim();
+                if (!newKey) return alert('Please enter an API key.');
+                
+                apiKey = newKey;
+                model = modelSelect.value;
+                localStorage.setItem('nvidia_api_key', apiKey);
+                localStorage.setItem('nvidia_model', model);
+                settingsPanel.classList.remove('open');
+                sendBtn.disabled = false;
+                addSystemMessage('✅ Settings saved.');
+            });
+
+            newChatBtn.addEventListener('click', () => startNewChat(true));
+            
+            historyBtn.addEventListener('click', () => {
+                renderHistoryList();
+                historyPanel.classList.add('open');
+            });
+            
+            closeHistory.addEventListener('click', () => historyPanel.classList.remove('open'));
+
             sendBtn.addEventListener('click', sendMessage);
             userInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -371,6 +522,7 @@
                 }
             });
 
+            // --- Start ---
             init();
         })();
     </script>
