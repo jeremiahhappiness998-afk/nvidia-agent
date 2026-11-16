@@ -32,6 +32,7 @@
             display: flex; align-items: center; justify-content: center;
         }
         .icon-btn:active { background: var(--surface-hover); }
+        
         /* Chat Area */
         .chat-container {
             flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;
@@ -62,10 +63,11 @@
             align-self: center; background: transparent; color: var(--text-secondary);
             font-size: 12px; text-align: center; max-width: 100%;
         }
+        
         /* Input Area */
         .input-area {
             display: flex; gap: 8px; padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom));
-            background: var(--surface); border-top: 1px solid var(--border);
+            background: var(--surface); border-top: 1px solid var(--border); align-items: flex-end;
         }
         .input-area textarea {
             flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text);
@@ -73,13 +75,28 @@
             outline: none; max-height: 120px; font-family: inherit;
         }
         .input-area textarea:focus { border-color: var(--accent); }
-        .input-area button {
-            background: var(--accent); border: none; color: #000; width: 44px; height: 44px;
-            border-radius: 50%; font-size: 20px; font-weight: bold; cursor: pointer;
+        
+        .action-btn {
+            background: var(--border); border: none; color: var(--text); width: 44px; height: 44px;
+            border-radius: 50%; font-size: 20px; cursor: pointer;
             display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
-        .input-area button:disabled { opacity: 0.5; }
-        /* Modals (Settings & History) */
+        #sendBtn { background: var(--accent); color: #000; font-weight: bold; }
+        #sendBtn:disabled { opacity: 0.5; }
+        
+        /* Recording Animation */
+        #micBtn { background: var(--surface-hover); }
+        #micBtn.recording {
+            background: #ff4444; color: white;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+        }
+
+        /* Modals */
         .modal-panel {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8);
             backdrop-filter: blur(5px); z-index: 100; display: none;
@@ -88,15 +105,18 @@
         .modal-panel.open { display: flex; }
         .modal-content {
             background: var(--surface); padding: 20px; border-radius: 16px; width: 100%;
-            max-width: 400px; border: 1px solid var(--border); max-height: 80vh;
+            max-width: 400px; border: 1px solid var(--border); max-height: 85vh;
             display: flex; flex-direction: column;
         }
         .modal-content h2 { margin-bottom: 16px; font-size: 18px; }
         .modal-content label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary); }
-        .modal-content input, .modal-content select {
+        .modal-content input, .modal-content select, .modal-content textarea {
             width: 100%; padding: 10px; margin-bottom: 16px; background: var(--bg);
             border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-size: 15px;
+            font-family: inherit;
         }
+        .modal-content textarea { resize: vertical; min-height: 80px; }
+        
         .btn-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
         .btn-row button { padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; }
         .btn-save { background: var(--accent); color: #000; font-weight: 600; }
@@ -112,7 +132,6 @@
             background: var(--bg); padding: 12px; border-radius: 8px;
             border: 1px solid var(--border); cursor: pointer;
         }
-        .history-item:active { background: var(--surface-hover); }
         .history-title {
             font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
         }
@@ -120,6 +139,7 @@
             background: transparent; border: none; color: #ff4444; font-size: 16px; cursor: pointer;
             padding: 4px 8px; margin-left: 8px;
         }
+        
         /* Typing Indicator */
         .typing { display: flex; gap: 4px; padding: 12px 16px; align-self: flex-start; }
         .typing span {
@@ -147,8 +167,9 @@
 
     <!-- Input Area -->
     <div class="input-area">
+        <button id="micBtn" class="action-btn" title="Voice Input">🎤</button>
         <textarea id="userInput" rows="1" placeholder="Ask the agent anything..."></textarea>
-        <button id="sendBtn" disabled>↑</button>
+        <button id="sendBtn" class="action-btn" disabled>↑</button>
     </div>
 
     <!-- Settings Panel -->
@@ -157,6 +178,7 @@
             <h2>⚙️ Configuration</h2>
             <label for="apiKeyInput">NVIDIA API Key</label>
             <input type="password" id="apiKeyInput" placeholder="nvapi-...">
+            
             <label for="modelSelect">Model (2026 Catalog)</label>
             <select id="modelSelect">
                 <option value="nvidia/nemotron-3-super-120b-a12b">Nemotron 3 Super 120B (Recommended)</option>
@@ -165,6 +187,10 @@
                 <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
                 <option value="nvidia/nemotron-3-ultra-550b-a55b">Nemotron 3 Ultra 550B (Reasoning)</option>
             </select>
+
+            <label for="personaInput">Agent Persona / System Prompt</label>
+            <textarea id="personaInput" placeholder="e.g., You are a strict coding teacher who explains things simply."></textarea>
+
             <div class="btn-row">
                 <button class="btn-close" id="closeSettings">Cancel</button>
                 <button class="btn-save" id="saveSettings">Save</button>
@@ -177,9 +203,7 @@
     <div class="modal-panel" id="historyPanel">
         <div class="modal-content">
             <h2>🕒 Chat History</h2>
-            <div class="history-list" id="historyList">
-                <!-- History items injected by JS -->
-            </div>
+            <div class="history-list" id="historyList"></div>
             <div class="btn-row">
                 <button class="btn-close" id="closeHistory">Close</button>
             </div>
@@ -193,9 +217,9 @@
             // --- State ---
             let apiKey = localStorage.getItem('nvidia_api_key') || '';
             let model = localStorage.getItem('nvidia_model') || 'nvidia/nemotron-3-super-120b-a12b';
+            let persona = localStorage.getItem('nvidia_persona') || 'You are a helpful, concise AI assistant. Answer clearly and directly.';
             let isLoading = false;
             
-            // Chat History State
             let allChats = JSON.parse(localStorage.getItem('nvidia_chats')) || [];
             let currentChatId = localStorage.getItem('nvidia_current_chat_id');
             let messages = [];
@@ -204,6 +228,7 @@
             const chatContainer = document.getElementById('chatContainer');
             const userInput = document.getElementById('userInput');
             const sendBtn = document.getElementById('sendBtn');
+            const micBtn = document.getElementById('micBtn');
             
             const settingsBtn = document.getElementById('settingsBtn');
             const settingsPanel = document.getElementById('settingsPanel');
@@ -211,6 +236,7 @@
             const saveSettings = document.getElementById('saveSettings');
             const apiKeyInput = document.getElementById('apiKeyInput');
             const modelSelect = document.getElementById('modelSelect');
+            const personaInput = document.getElementById('personaInput');
 
             const newChatBtn = document.getElementById('newChatBtn');
             const historyBtn = document.getElementById('historyBtn');
@@ -223,10 +249,10 @@
                 if (apiKey) {
                     apiKeyInput.value = apiKey;
                     modelSelect.value = model;
+                    personaInput.value = persona;
                     sendBtn.disabled = false;
                 }
 
-                // Load or Start Chat
                 if (currentChatId) {
                     const savedChat = allChats.find(c => c.id === currentChatId);
                     if (savedChat) {
@@ -243,15 +269,14 @@
                     userInput.style.height = 'auto';
                     userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
                 });
+
+                setupSpeechRecognition();
             }
 
             // --- Chat History Logic ---
             function saveCurrentChat() {
                 if (messages.length === 0) return;
-                
                 const chatIndex = allChats.findIndex(c => c.id === currentChatId);
-                
-                // Create title from first user message
                 const firstUserMsg = messages.find(m => m.role === 'user');
                 const title = firstUserMsg ? firstUserMsg.content.substring(0, 30) + (firstUserMsg.content.length > 30 ? '...' : '') : 'New Chat';
 
@@ -262,11 +287,8 @@
                     messages: messages
                 };
 
-                if (chatIndex > -1) {
-                    allChats[chatIndex] = chatData; // Update existing
-                } else {
-                    allChats.unshift(chatData); // Add new to top
-                }
+                if (chatIndex > -1) allChats[chatIndex] = chatData;
+                else allChats.unshift(chatData);
 
                 localStorage.setItem('nvidia_chats', JSON.stringify(allChats));
                 localStorage.setItem('nvidia_current_chat_id', currentChatId);
@@ -274,23 +296,19 @@
 
             function startNewChat(saveCurrent = true) {
                 if (saveCurrent) saveCurrentChat();
-                
                 currentChatId = 'chat_' + Date.now();
                 localStorage.setItem('nvidia_current_chat_id', currentChatId);
                 messages = [];
                 chatContainer.innerHTML = '';
                 
-                if (!apiKey) {
-                    addSystemMessage('Connect your NVIDIA API key in Settings to begin.');
-                } else {
-                    addSystemMessage('New chat started. Ask me anything!');
-                }
+                if (!apiKey) addSystemMessage('Connect your NVIDIA API key in Settings to begin.');
+                else addSystemMessage('New chat started.');
+                
                 renderHistoryList();
             }
 
             function loadChat(id) {
                 saveCurrentChat();
-                
                 const chat = allChats.find(c => c.id === id);
                 if (!chat) return;
 
@@ -302,30 +320,24 @@
             }
 
             function deleteChat(id, event) {
-                event.stopPropagation(); // Prevent clicking the item
+                event.stopPropagation();
                 if (!confirm('Delete this chat?')) return;
 
                 allChats = allChats.filter(c => c.id !== id);
                 localStorage.setItem('nvidia_chats', JSON.stringify(allChats));
 
-                if (currentChatId === id) {
-                    startNewChat(false);
-                } else {
-                    renderHistoryList();
-                }
+                if (currentChatId === id) startNewChat(false);
+                else renderHistoryList();
             }
 
             function renderAllMessages() {
                 chatContainer.innerHTML = '';
-                messages.forEach(msg => {
-                    renderMessageBubble(msg.role, msg.content);
-                });
+                messages.forEach(msg => renderMessageBubble(msg.role, msg.content));
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
 
             function renderHistoryList() {
                 historyList.innerHTML = '';
-                
                 if (allChats.length === 0) {
                     historyList.innerHTML = '<div style="color:#888; text-align:center; padding: 20px;">No past chats yet.</div>';
                     return;
@@ -355,12 +367,8 @@
             function renderMessageBubble(role, content) {
                 const div = document.createElement('div');
                 div.className = `message ${role}`;
-                
-                if (role === 'agent') {
-                    div.innerHTML = marked.parse(content);
-                } else {
-                    div.textContent = content;
-                }
+                if (role === 'agent') div.innerHTML = marked.parse(content);
+                else div.textContent = content;
                 
                 chatContainer.appendChild(div);
                 chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -369,7 +377,7 @@
             function addMessage(role, content) {
                 renderMessageBubble(role, content);
                 messages.push({ role, content });
-                saveCurrentChat(); // Auto-save on every message
+                saveCurrentChat();
             }
 
             function addSystemMessage(text) {
@@ -394,6 +402,56 @@
                 if (el) el.remove();
             }
 
+            // --- Voice Recording (Speech-to-Text) ---
+            function setupSpeechRecognition() {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                
+                if (!SpeechRecognition) {
+                    micBtn.style.display = 'none'; // Hide if browser doesn't support it
+                    console.warn("Speech Recognition not supported in this browser.");
+                    return;
+                }
+
+                const recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+
+                let isRecording = false;
+
+                micBtn.addEventListener('click', () => {
+                    if (isRecording) {
+                        recognition.stop();
+                        return;
+                    }
+                    try {
+                        recognition.start();
+                        micBtn.classList.add('recording');
+                        isRecording = true;
+                    } catch (err) {
+                        console.error(err);
+                    }
+                });
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    userInput.value += (userInput.value ? ' ' : '') + transcript;
+                    userInput.style.height = 'auto';
+                    userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    micBtn.classList.remove('recording');
+                    isRecording = false;
+                };
+
+                recognition.onend = () => {
+                    micBtn.classList.remove('recording');
+                    isRecording = false;
+                };
+            }
+
             // --- API & Sending ---
             function explainError(status, rawBody) {
                 let detail = '';
@@ -405,14 +463,12 @@
                 }
 
                 const base = `NVIDIA API Error (${status})`;
-
                 switch (status) {
-                    case 400: return `${base}: The request was rejected by the model. Try switching models in Settings. Details: ${detail}`;
+                    case 400: return `${base}: The request was rejected. Try switching models. Details: ${detail}`;
                     case 401: return `${base}: Your API key is invalid or expired.`;
-                    case 403: return `${base}: Access forbidden. Your key may not have permission to use this model.`;
-                    case 404: return `${base}: This model was retired by NVIDIA. Pick a new one in Settings.`;
-                    case 410: return `${base}: This model has been permanently removed. Switch to a newer model.`;
-                    case 429: return `${base}: You are sending requests too quickly. Wait a minute and try again.`;
+                    case 403: return `${base}: Access forbidden. Your key may not have permission.`;
+                    case 404: return `${base}: This model was retired. Pick a new one in Settings.`;
+                    case 429: return `${base}: Rate limit reached. Wait a minute and try again.`;
                     default: return `${base}: ${detail || 'Unknown error.'}`;
                 }
             }
@@ -441,7 +497,7 @@
                     }));
 
                     const apiMessages = [
-                        { role: 'system', content: 'You are a helpful, concise AI assistant running on a mobile device. Answer clearly and directly.' },
+                        { role: 'system', content: persona }, // 🟢 Injecting the Persona here
                         ...sanitizedHistory
                     ];
 
@@ -487,6 +543,7 @@
             settingsBtn.addEventListener('click', () => {
                 apiKeyInput.value = apiKey;
                 modelSelect.value = model;
+                personaInput.value = persona;
                 settingsPanel.classList.add('open');
             });
 
@@ -498,20 +555,19 @@
                 
                 apiKey = newKey;
                 model = modelSelect.value;
+                persona = personaInput.value.trim() || 'You are a helpful, concise AI assistant.';
+                
                 localStorage.setItem('nvidia_api_key', apiKey);
                 localStorage.setItem('nvidia_model', model);
+                localStorage.setItem('nvidia_persona', persona);
+                
                 settingsPanel.classList.remove('open');
                 sendBtn.disabled = false;
-                addSystemMessage('✅ Settings saved.');
+                addSystemMessage('✅ Settings & Persona saved.');
             });
 
             newChatBtn.addEventListener('click', () => startNewChat(true));
-            
-            historyBtn.addEventListener('click', () => {
-                renderHistoryList();
-                historyPanel.classList.add('open');
-            });
-            
+            historyBtn.addEventListener('click', () => { renderHistoryList(); historyPanel.classList.add('open'); });
             closeHistory.addEventListener('click', () => historyPanel.classList.remove('open'));
 
             sendBtn.addEventListener('click', sendMessage);
