@@ -130,7 +130,7 @@
                 <option value="nvidia/nemotron-3.5-bolt-e4b">Nemotron 3.5 Bolt E4B (Fast)</option>
                 <option value="deepseek-ai/deepseek-v4-flash">DeepSeek V4 Flash</option>
                 <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
-                <option value="nvidia/nemotron-3-ultra-550b-a55b">Nemotron 3 Ultra 550B (Heavy)</option>
+                <option value="nvidia/nemotron-3-ultra-550b-a55b">Nemotron 3 Ultra 550B (Reasoning)</option>
             </select>
             <div class="btn-row">
                 <button class="btn-close" id="closeSettings">Cancel</button>
@@ -247,7 +247,7 @@
 
                 switch (status) {
                     case 400:
-                        return `${base}: The model rejected the request. This usually means the selected model has strict schema requirements or does not support multi-turn chat. Try switching to "Nemotron 3 Super 120B" in Settings. Details: ${detail}`;
+                        return `${base}: The request format was rejected by the model. This usually happens if the AI model has strict formatting rules. Switch to "Nemotron 3 Super 120B" in Settings. Details: ${detail}`;
                     case 401:
                         return `${base}: Your API key is invalid or expired. Please generate a new key at build.nvidia.com and paste it in Settings.`;
                     case 403:
@@ -285,9 +285,17 @@
                 showTyping();
 
                 try {
+                    // 🟢 SCHEMA FIX: Sanitize the message history 
+                    // This strips out hidden fields like 'reasoning_content' that cause 400 errors
+                    // on multi-turn conversations with reasoning models.
+                    const sanitizedHistory = messages.map(msg => ({
+                        role: msg.role,
+                        content: typeof msg.content === 'string' ? msg.content : ''
+                    }));
+
                     const apiMessages = [
                         { role: 'system', content: 'You are a helpful, concise AI assistant running on a mobile device. Answer clearly and directly.' },
-                        ...messages
+                        ...sanitizedHistory
                     ];
 
                     // 🟢 Your Cloudflare Worker Proxy URL
