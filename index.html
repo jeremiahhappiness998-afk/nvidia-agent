@@ -8,7 +8,7 @@
     <style>
         :root {
             --bg: #0a0a0a; --surface: #1a1a1a; --surface-hover: #2a2a2a;
-            --text: #e0e0e0; --text-secondary: #888; --accent: #76b900; /* NVIDIA Green */
+            --text: #e0e0e0; --text-secondary: #888; --accent: #76b900;
             --user-bubble: #005a9e; --agent-bubble: #1e1e1e; --border: #333;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -124,18 +124,19 @@
             <h2>⚙️ Configuration</h2>
             <label for="apiKeyInput">NVIDIA API Key</label>
             <input type="password" id="apiKeyInput" placeholder="nvapi-...">
-            <label for="modelSelect">Model</label>
+            <label for="modelSelect">Model (2026 Catalog)</label>
             <select id="modelSelect">
-                <option value="nvidia/nemotron-3-ultra-550b-a55b">Nemotron Ultra</option>
-                <option value="meta/llama-3.1-405b-instruct">Llama 3.1 405B</option>
-                <option value="meta/llama-3.1-70b-instruct">Llama 3.1 70B</option>
-                <option value="mistralai/mixtral-8x7b-instruct-v0.1">Mixtral 8x7B</option>
+                <option value="nvidia/nemotron-3-super-120b-a12b">Nemotron 3 Super 120B (Recommended)</option>
+                <option value="nvidia/nemotron-3.5-bolt-e4b">Nemotron 3.5 Bolt E4B (Fast)</option>
+                <option value="deepseek-ai/deepseek-v4-flash">DeepSeek V4 Flash</option>
+                <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+                <option value="nvidia/nemotron-3-ultra-550b-a55b">Nemotron 3 Ultra 550B (Heavy)</option>
             </select>
             <div class="btn-row">
                 <button class="btn-close" id="closeSettings">Cancel</button>
                 <button class="btn-save" id="saveSettings">Save</button>
             </div>
-            <p class="disclaimer">Your key is stored locally on this device only. Never share it publicly. Get a free key at build.nvidia.com.</p>
+            <p class="disclaimer">Your key is stored locally on this device only. Get a free key at build.nvidia.com.</p>
         </div>
     </div>
 
@@ -143,8 +144,8 @@
         (function() {
             // --- State ---
             let apiKey = localStorage.getItem('nvidia_api_key') || '';
-            let model = localStorage.getItem('nvidia_model') || 'nvidia/nemotron-3-ultra-550b-a55b';
-            let messages = []; // Conversation history
+            let model = localStorage.getItem('nvidia_model') || 'nvidia/nemotron-3-super-120b-a12b';
+            let messages = [];
             let isLoading = false;
 
             // --- DOM Elements ---
@@ -232,6 +233,40 @@
                 if (el) el.remove();
             }
 
+            // --- Human-Readable Error Translator ---
+            function explainError(status, rawBody) {
+                let detail = '';
+                try {
+                    const parsed = JSON.parse(rawBody);
+                    detail = parsed.error?.message || parsed.detail || parsed.message || '';
+                } catch (e) {
+                    detail = rawBody.slice(0, 200);
+                }
+
+                const base = `NVIDIA API Error (${status})`;
+
+                switch (status) {
+                    case 400:
+                        return `${base}: The model rejected the request. This usually means the selected model has strict schema requirements or does not support multi-turn chat. Try switching to "Nemotron 3 Super 120B" in Settings. Details: ${detail}`;
+                    case 401:
+                        return `${base}: Your API key is invalid or expired. Please generate a new key at build.nvidia.com and paste it in Settings.`;
+                    case 403:
+                        return `${base}: Access forbidden. Your key may not have permission to use this specific model. Try a different model in Settings.`;
+                    case 404:
+                        return `${base}: The model "${model}" was retired by NVIDIA. Go to Settings and pick a currently active model (e.g., Nemotron 3 Super 120B).`;
+                    case 410:
+                        return `${base}: This model has been permanently removed from NVIDIA's catalog. Please switch to a newer model in Settings.`;
+                    case 429:
+                        return `${base}: You are sending requests too quickly. Wait a minute, then try again. (NVIDIA's free tier has rate limits.)`;
+                    case 500:
+                    case 502:
+                    case 503:
+                        return `${base}: NVIDIA's servers are temporarily busy or down. Wait a moment and try again.`;
+                    default:
+                        return `${base}: ${detail || 'Unknown error. Try switching models or check your API key.'}`;
+                }
+            }
+
             async function sendMessage() {
                 const text = userInput.value.trim();
                 if (!text || isLoading) return;
@@ -241,7 +276,6 @@
                     return;
                 }
 
-                // Add user message
                 addMessage('user', text);
                 userInput.value = '';
                 userInput.style.height = 'auto';
@@ -256,7 +290,7 @@
                         ...messages
                     ];
 
-                    // 🟢 USING YOUR CLOUDFLARE WORKER PROXY URL HERE 🟢
+                    // 🟢 Your Cloudflare Worker Proxy URL
                     const response = await fetch('https://nvidia-proxy.jeremiahhappiness998.workers.dev', {
                         method: 'POST',
                         headers: {
@@ -273,24 +307,21 @@
                     });
 
                     if (!response.ok) {
-                        if (response.status === 410) {
-                            throw new Error('410 Model Deprecated: NVIDIA has retired this specific model. Go to Settings and choose a different one.');
-                        }
-                        const errorData = await response.json().catch(() => ({}));
-                        throw new Error(errorData.error?.message || errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+                        const rawBody = await response.text();
+                        throw new Error(explainError(response.status, rawBody));
                     }
 
                     const data = await response.json();
                     const reply = data.choices?.[0]?.message?.content;
 
-                    if (!reply) throw new Error('No response content received.');
+                    if (!reply) throw new Error('No response content received from the model.');
 
                     hideTyping();
                     addMessage('agent', reply);
 
                 } catch (error) {
                     hideTyping();
-                    addSystemMessage(`❌ Error: ${error.message}`);
+                    addSystemMessage(`❌ ${error.message}`);
                 } finally {
                     isLoading = false;
                     sendBtn.disabled = false;
